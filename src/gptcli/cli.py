@@ -160,6 +160,14 @@ def get_client():
 def _ensure_dir(dest: str = "."):
     (Path(BASE_DIR) / dest ).mkdir(parents=True, exist_ok=True)
 
+def collect_attached_file_ids(history):
+    pdfs, rags = [], []
+    for m in history:
+        if isinstance(m, dict):
+            pdfs += m.get("files_pdf") or []
+            rags += m.get("files_rag") or []
+    return list(dict.fromkeys(pdfs)), list(dict.fromkeys(rags))
+
 def get_default_session():
     _ensure_dir()
     if CONFIG.exists():
@@ -863,17 +871,22 @@ def main():
     if not prompt and not args.upload and not args.attach:
         print("空のプロンプトです（ファイルだけ投げる場合でも簡単な指示文を推奨）", file=sys.stderr); sys.exit(1)
 
+    session = resolve_session_token(args.session) if args.session else get_default_session()
+    history = load_history(session)
+
     # アップロード＆既存ID分類
-    pdf_ids, rag_ids, id2local = [], [], {}
+    pdf_ids = []
+    rag_ids = []
+    id2local = {}
+    hist_pdf, hist_rag = collect_attached_file_ids(history)
+    pdf_ids = list(dict.fromkeys(pdf_ids + hist_pdf))
+    rag_ids = list(dict.fromkeys(rag_ids + hist_rag))
     if args.upload:
         p_pdf, p_rag, mapping = upload_auto(args.upload, api_key)
         pdf_ids += p_pdf; rag_ids += p_rag; id2local.update(mapping)
     if args.attach:
         a_pdf, a_rag = classify_existing_ids(args.attach, api_key)
         pdf_ids += a_pdf; rag_ids += a_rag
-
-    session = resolve_session_token(args.session) if args.session else get_default_session()
-    history = load_history(session)
 
     KEEP = 6
     if len(history) > KEEP:
