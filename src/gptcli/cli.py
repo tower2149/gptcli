@@ -179,6 +179,7 @@ def grep_sessions(pattern, session=None, all_sessions=False, role="all", ignore_
     hits = []
     for s in targets:
         hist = load_history(s)
+        hist = [m for m in hist if isinstance(m, dict)]
         if role in ("user","assistant"):
             hist = [m for m in hist if m.get("role")==role]
         if last and last>0:
